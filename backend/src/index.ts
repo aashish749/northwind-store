@@ -20,6 +20,11 @@ import orderRouter from "./routes/orderRouter";
 const env = getEnv();
 const app = express();
 
+// 2. RAW BODY PARSER FOR WEBHOOKS (Mounted before standard json parsing)
+const rawJson = express.raw({ type: "application/json", limit: "1mb" });
+app.post("/webhooks/clerk", rawJson, (req, res) => {
+  void clerkWebhookHandler(req, res);
+});
 // 1. PLACE CORS AT THE VERY TOP
 app.use(
   cors({
@@ -27,13 +32,6 @@ app.use(
     credentials: true,
   }),
 );
-
-// 2. RAW BODY PARSER FOR WEBHOOKS (Mounted before standard json parsing)
-const rawJson = express.raw({ type: "application/json", limit: "1mb" });
-app.post("/webhooks/clerk", rawJson, (req, res) => {
-  void clerkWebhookHandler(req, res);
-});
-
 // 3. STANDARD JSON BODY PARSER FOR REGULAR ROUTES
 app.use(express.json());
 
