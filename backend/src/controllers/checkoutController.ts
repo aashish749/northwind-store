@@ -42,6 +42,11 @@ export async function createCheckout(req: Request, res: Response, next: NextFunc
       return;
     }
 
+    if (!env.POLAR_CHECKOUT_PRODUCT_ID) {
+      res.status(503).json({ error: "Checkout product is not configured" });
+      return;
+    }
+
     const localUser = await getLocalUser(userId);
     if (!localUser) {
       res.status(503).json({ error: "Account not synced yet" });
