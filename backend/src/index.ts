@@ -20,25 +20,32 @@ import orderRouter from "./routes/orderRouter";
 const env = getEnv();
 const app = express();
 
-const rawJson = express.raw({ type: "application/json", limit: "1mb" });
-
-// it's important that you don't parse the webhook event data, it should be in the raw format
-app.post("/webhooks/clerk", rawJson, (req, res) => {
-  void clerkWebhookHandler(req, res);
-});
-app.use(express.json());
+// 1. PLACE CORS AT THE VERY TOP
 app.use(
   cors({
     origin: env.FRONTEND_URL,
     credentials: true,
   }),
 );
+
+// 2. RAW BODY PARSER FOR WEBHOOKS (Mounted before standard json parsing)
+const rawJson = express.raw({ type: "application/json", limit: "1mb" });
+app.post("/webhooks/clerk", rawJson, (req, res) => {
+  void clerkWebhookHandler(req, res);
+});
+
+// 3. STANDARD JSON BODY PARSER FOR REGULAR ROUTES
+app.use(express.json());
+
+// 4. CLERK AUTH MIDDLEWARE (Intercepts regular routes below it)
 app.use(clerkMiddleware());
 
+// 5. PUBLIC HEALTH CHECK
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+// 6. ROUTERS
 app.use("/api/me", meRouter);
 app.use("/api/products", productRouter);
 app.use("/api/stream", streamRouter);
