@@ -1,14 +1,10 @@
 import type { Request, Response, NextFunction } from "express";
-import { getEnv } from "../lib/env";
 import z from "zod";
 import { getAuth } from "@clerk/express";
 import { getLocalUser } from "../lib/users";
 import { db } from "../db";
-import { CheckoutSessionLine, checkoutSessions, products } from "../db/schema";
+import { orderItems, orders, products } from "../db/schema";
 import { and, eq, inArray } from "drizzle-orm";
-import { polarCreateCheckout } from "../lib/polar";
-
-const env = getEnv();
 
 const cartSchema = z.object({
   items: z
@@ -21,7 +17,11 @@ const cartSchema = z.object({
     .min(1),
 });
 
-export async function createCheckout(req: Request, res: Response, next: NextFunction) {
+export async function createCheckout(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   try {
     // only signed-in users can start checkout
     const { userId, isAuthenticated } = getAuth(req);
@@ -32,13 +32,9 @@ export async function createCheckout(req: Request, res: Response, next: NextFunc
 
     const parsed = cartSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Invalid cart", details: parsed.error.flatten() });
-      return;
-    }
-
-    // polar access token is required
-    if (!env.POLAR_ACCESS_TOKEN) {
-      res.status(503).json({ error: "Payments are not configured" });
+      res
+        .status(400)
+        .json({ error: "Invalid cart", details: parsed.error.flatten() });
       return;
     }
 
@@ -63,62 +59,41 @@ export async function createCheckout(req: Request, res: Response, next: NextFunc
 
     const byId = new Map(prodRows.map((p) => [p.id, p]));
     let totalCents = 0;
-    const lines: CheckoutSessionLine[] = [];
 
     for (const line of parsed.data.items) {
       const p = byId.get(line.productId)!;
       totalCents += p.priceCents * line.quantity;
-      lines.push({
-        productId: p.id,
-        quantity: line.quantity,
-        unitPriceCents: p.priceCents,
-      });
     }
 
-    if (totalCents < 10) {
-      res.status(400).json({
-        error: "Total below Polar minimum (e.g. USD requires at least 10 cents)",
-      });
-      return;
-    }
-
-    const [session] = await db
-      .insert(checkoutSessions)
+    // Create the order directly with "paid" status (dummy payment)
+    const [order] = await db
+      .insert(orders)
       .values({
         userId: localUser.id,
-        lines,
+        status: "paid",
         totalCents,
-        currency: "usd",
       })
       .returning();
 
-    const successUrl = `${env.FRONTEND_URL}/checkout/return?checkout_id={CHECKOUT_ID}`;
-    const returnUrl = `${env.FRONTEND_URL}/cart`;
-
-    const checkout = await polarCreateCheckout(env, {
-      products: [env.POLAR_CHECKOUT_PRODUCT_ID],
-      prices: {
-        [env.POLAR_CHECKOUT_PRODUCT_ID]: [
-          {
-            amount_type: "fixed",
-            price_currency: "usd",
-            price_amount: totalCents,
-          },
-        ],
-      },
-
-      success_url: successUrl,
-      return_url: returnUrl,
-      external_customer_id: userId,
-      metadata: { checkout_session_id: session.id },
+    // Create order items
+    const orderItemsData = parsed.data.items.map((line) => {
+      const p = byId.get(line.productId)!;
+      return {
+        orderId: order.id,
+        productId: p.id,
+        quantity: line.quantity,
+        unitPriceCents: p.priceCents,
+      };
     });
 
-    await db
-      .update(checkoutSessions)
-      .set({ polarCheckoutId: checkout.id })
-      .where(eq(checkoutSessions.id, session.id));
+    if (orderItemsData.length > 0) {
+      await db.insert(orderItems).values(orderItemsData);
+    }
 
-    res.json({ checkoutUrl: checkout.url });
+    res.json({
+      orderId: order.id,
+      checkoutUrl: `/checkout/return?order_id=${order.id}`,
+    });
   } catch (e) {
     next(e);
   }

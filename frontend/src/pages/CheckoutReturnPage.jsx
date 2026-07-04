@@ -8,7 +8,7 @@ function CheckoutReturnPage() {
   const clearCart = useCart((s) => s.clear);
 
   const [params] = useSearchParams();
-  const checkoutId = params.get("checkout_id");
+  const orderId = params.get("order_id");
 
   const queryClient = useQueryClient();
 
@@ -25,17 +25,21 @@ function CheckoutReturnPage() {
         </div>
       </div>
 
-      <h1 className="text-2xl font-bold text-base-content">Thanks for your order</h1>
+      <h1 className="text-2xl font-bold text-base-content">
+        Thanks for your order
+      </h1>
 
       <p className="mt-4 text-base-content/70">
-        Your order is created after payment is confirmed. Open it from your orders list for{" "}
-        <strong className="text-base-content">support chat</strong> (it appears there as{" "}
-        <strong className="text-base-content">paid</strong>). We&apos;ll send video invites in that
-        thread when needed.
+        Your order is confirmed. Open it from your orders list for{" "}
+        <strong className="text-base-content">support chat</strong> (it appears
+        there as <strong className="text-base-content">paid</strong>). We'll
+        send video invites in that thread when needed.
       </p>
 
-      {checkoutId ? (
-        <p className="mt-2 font-mono text-xs text-base-content/50">Checkout: {checkoutId}</p>
+      {orderId ? (
+        <p className="mt-2 font-mono text-xs text-base-content/50">
+          Order: {orderId.slice(0, 8)}...
+        </p>
       ) : null}
 
       <Link to="/orders" className="btn btn-primary mt-8 gap-2">

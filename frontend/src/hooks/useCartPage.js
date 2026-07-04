@@ -39,7 +39,10 @@ export default function useCartPage() {
     setCheckoutLoading(true);
 
     const body = {
-      items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      items: items.map((i) => ({
+        productId: i.productId,
+        quantity: i.quantity,
+      })),
     };
 
     const res = await apiFetch("/api/checkout", {

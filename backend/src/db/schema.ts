@@ -1,14 +1,15 @@
-import { pgTable, text, integer, timestamp, uuid, boolean, jsonb } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  integer,
+  timestamp,
+  uuid,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export type OrderStatus = "pending" | "paid" | "failed";
 export type UserRole = "customer" | "support" | "admin";
-
-export type CheckoutSessionLine = {
-  productId: string;
-  quantity: number;
-  unitPriceCents: number;
-};
 
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -16,8 +17,12 @@ export const users = pgTable("users", {
   email: text("email").notNull().default(""),
   displayName: text("display_name"),
   role: text("role").$type<UserRole>().notNull().default("customer"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const products = pgTable("products", {
@@ -32,19 +37,9 @@ export const products = pgTable("products", {
   /** ImageKit `fileId` for deletes */
   imageKitFileId: text("image_kit_file_id"),
   active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
-export const checkoutSessions = pgTable("checkout_sessions", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  polarCheckoutId: text("polar_checkout_id").unique(),
-  lines: jsonb("lines").$type<CheckoutSessionLine[]>().notNull(),
-  totalCents: integer("total_cents").notNull(),
-  currency: text("currency").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const orders = pgTable("orders", {
@@ -53,11 +48,13 @@ export const orders = pgTable("orders", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   status: text("status").$type<OrderStatus>().notNull().default("pending"),
-  polarCheckoutId: text("polar_checkout_id"),
-  polarOrderId: text("polar_order_id").unique(),
   totalCents: integer("total_cents").notNull().default(0),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const orderItems = pgTable("order_items", {
@@ -93,5 +90,8 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
 // each line item is for exactly one order and one product
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({
   order: one(orders, { fields: [orderItems.orderId], references: [orders.id] }),
-  product: one(products, { fields: [orderItems.productId], references: [products.id] }),
+  product: one(products, {
+    fields: [orderItems.productId],
+    references: [products.id],
+  }),
 }));
