@@ -9,7 +9,7 @@ import { ClerkProvider } from "@clerk/react";
 import { BrowserRouter } from "react-router";
 
 const queryClient = new QueryClient();
-
+document.title = "GearShop";
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <ClerkProvider>
